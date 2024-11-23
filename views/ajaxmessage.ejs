@@ -32,19 +32,19 @@
 
     <script>
         function submitMessage() {
-            // Collect form data
+            
             const username = document.getElementById('username').value;
             const country = document.getElementById('country').value;
             const message = document.getElementById('message').value;
 
-            // Create a JSON object to send
+            
             const data = {
                 username: username,
                 country: country,
                 message: message
             };
 
-            // Send the data using Fetch API
+            
             fetch('/ajaxmessage', {
                 method: 'POST',
                 headers: {
@@ -52,16 +52,16 @@
                 },
                 body: JSON.stringify(data)
             })
-            .then(response => response.json()) // Parse JSON response
+            .then(response => response.json()) 
             .then(messages => {
-                // Display messages
+                
                 const messagesDiv = document.getElementById('messages');
-                messagesDiv.innerHTML = ''; // Clear existing messages
+                messagesDiv.innerHTML = ''; 
                 messages.forEach(msg => {
-                    const date = new Date(msg.date).toLocaleString(); // Format date
+                    const date = new Date(msg.date).toLocaleString(); 
                     messagesDiv.innerHTML += <p><strong>${msg.username}</strong> (${msg.country}): ${msg.message} <em>${date}</em></p>;
                 });
-                // Clear form fields after submission
+                
                 document.getElementById('messageForm').reset();
             })
             .catch(error => console.error('Error:', error));

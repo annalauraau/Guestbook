@@ -1,92 +1,156 @@
 const express = require('express');
-const fs = require('fs-extra'); // Ensure fs-extra is installed
-const bodyParser = require('body-parser');
+const mongoose = require('mongoose');
 const path = require('path');
 
 const app = express();
-const PORT = 3000; // You can change the port if needed
-const MESSAGES_FILE = path.join(__dirname, 'messages.json');
+const PORT = 3000;
 
-// Middleware
-app.use(bodyParser.json()); // For parsing application/json
-app.use(bodyParser.urlencoded({ extended: true })); // For parsing application/x-www-form-urlencoded
-app.use(express.static('public')); // Serve static files from public directory
-app.set('view engine', 'ejs'); // Set EJS as the view engine
+const uri = "mongodb+srv://annastudenthi:anna@clusteranna.brxtp.mongodb.net/?retryWrites=true&w=majority&appName=Clusteranna";
 
-// Route for the homepage
+mongoose.connect(uri)
+  .then(() => {
+    console.log('MongoDB connected');
+  })
+  .catch((err) => {
+    console.log('MongoDB connection error:', err);
+  });
+
+const messageSchema = new mongoose.Schema({
+  name: { type: String, required: true },
+  country: { type: String, required: true },
+  message: { type: String, required: true },
+  date: { type: Date, default: Date.now }
+});
+
+const Message = mongoose.model('Message', messageSchema);
+
+app.set('view engine', 'ejs');
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(express.static(path.join(__dirname, 'public')));
+
 app.get('/', (req, res) => {
-    res.render('index'); // Render the frontpage (index.ejs)
+  res.render('index', { title: "Welcome to the Guestbook" });
 });
 
-// Route for the guestbook page
-app.get('/guestbook', (req, res) => {
-    fs.readJson(MESSAGES_FILE, (err, messages) => {
-        if (err) {
-            messages = []; // If the file doesn't exist, start with an empty array
-        }
-        res.render('guestbook', { messages }); // Render guestbook.ejs with messages
-    });
+app.get('/guestbook', async (req, res) => {
+  try {
+    const messages = await Message.find();
+    res.render('guestbook', { title: "Guestbook", messages });
+  } catch (error) {
+    res.status(500).send("Error reading messages from MongoDB");
+  }
 });
 
-// Route for the new message form
 app.get('/newmessage', (req, res) => {
-    res.render('newmessage'); // Render newmessage.ejs (form page)
+  res.render('newmessage', { title: "Add a New Message" });
 });
 
-// Route for handling new message submissions
-app.post('/newmessage', (req, res) => {
-    const newMessage = {
-        username: req.body.username,
-        country: req.body.country,
-        message: req.body.message,
-        date: new Date().toISOString() // Use ISO string for timestamp
-    };
+app.post('/newmessage', async (req, res) => {
+  const { name, message, country } = req.body;
+  if (!name || !message || !country) {
+    return res.status(400).send("Name, country, and message are required.");
+  }
 
-    // Read the existing messages from the JSON file
-    fs.readJson(MESSAGES_FILE, (err, messages) => {
-        if (err) {
-            messages = []; // If the file doesn't exist, start with an empty array
-        }
-        messages.push(newMessage); // Add the new message to the array
-        fs.writeJson(MESSAGES_FILE, messages, (err) => {
-            if (err) {
-                console.error('Error writing to file', err);
-            }
-            res.redirect('/guestbook'); // Redirect back to the guestbook page
-        });
+  const newMessage = new Message({
+    name,
+    country,
+    message,
+    date: new Date().toISOString()
+  });
+
+  try {
+    await newMessage.save();
+    res.redirect('/guestbook');
+  } catch (error) {
+    res.status(500).send("Error saving the message");
+  }
+});
+
+app.post('/api/messages', async (req, res) => {
+  const { name, message, country } = req.body;
+
+  if (!name || !message || !country) {
+    return res.status(400).json({ error: 'Name, message, and country are required' });
+  }
+
+  try {
+    const newMessage = new Message({
+      name,
+      country,
+      message,
+      date: new Date().toISOString()
     });
+
+    await newMessage.save();
+
+    res.status(201).json(newMessage);
+  } catch (error) {
+    console.error('Error saving the message:', error);
+    res.status(500).json({ error: 'Error saving the message' });
+  }
 });
 
-// Route for the AJAX message form (GET)
-app.get('/ajaxmessage', (req, res) => {
-    res.render('ajaxmessage'); // Render ajaxmessage.ejs (form page)
+app.get('/api/messages', async (req, res) => {
+  try {
+    const messages = await Message.find();
+    res.status(200).json(messages);
+  } catch (error) {
+    res.status(500).json({ error: 'Error retrieving messages' });
+  }
 });
 
-// Route to handle AJAX message submissions (POST)
-app.post('/ajaxmessage', (req, res) => {
-    const newMessage = {
-        username: req.body.username,
-        country: req.body.country,
-        message: req.body.message,
-        date: new Date().toISOString() // Use ISO string for timestamp
-    };
+app.get('/api/messages/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const message = await Message.findById(id);
+    
+    if (!message) {
+      return res.status(404).json({ error: 'Message not found' });
+    }
 
-    // Read the existing messages from the JSON file
-    fs.readJson(MESSAGES_FILE, (err, messages) => {
-        if (err) {
-            messages = []; // If the file doesn't exist, start with an empty array
-        }
-        messages.push(newMessage); // Add the new message to the array
-        fs.writeJson(MESSAGES_FILE, messages, (err) => {
-            if (err) {
-                console.error('Error writing to file', err);
-            }
-            res.json(messages); // Send all messages back as JSON response
-        });
-    });
+    res.status(200).json(message);
+  } catch (error) {
+    res.status(500).json({ error: 'Error retrieving the message' });
+  }
 });
 
-// Start the server
+app.put('/api/messages/:id', async (req, res) => {
+  const { id } = req.params;
+  const { name, message, country } = req.body;
+
+  if (!name || !message || !country) {
+    return res.status(400).json({ error: 'Name, message, and country are required' });
+  }
+
+  try {
+    const updatedMessage = await Message.findByIdAndUpdate(id, { name, message, country, date: new Date() }, { new: true });
+
+    if (!updatedMessage) {
+      return res.status(404).json({ error: 'Message not found' });
+    }
+
+    res.status(200).json(updatedMessage);
+  } catch (error) {
+    res.status(500).json({ error: 'Error updating the message' });
+  }
+});
+
+app.delete('/api/messages/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const deletedMessage = await Message.findByIdAndDelete(id);
+    
+    if (!deletedMessage) {
+      return res.status(404).json({ error: 'Message not found' });
+    }
+
+    res.status(200).json({ message: 'Message deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ error: 'Error deleting the message' });
+  }
+});
+
 app.listen(PORT, () => {
-    console.log('Server is running on http://localhost:${PORT}');
+  console.log('Server is running on http://localhost:${PORT}');
 });

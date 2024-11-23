@@ -11,16 +11,16 @@
         <h1 class="mt-5">Kirjoita uusi viesti</h1>
         <form action="/newmessage" method="POST" onsubmit="return validateForm()">
             <div class="mb-3">
-                <label for="username" class="form-label">Nimi:</label>
-                <input type="text" class="form-control" id="username" name="username" required>
+                <label for="name" class="form-label">Nimi:</label>
+                <input type="text" class="form-control" id="name" name="name" required> <!-- Nimi kenttä -->
             </div>
             <div class="mb-3">
                 <label for="country" class="form-label">Maa:</label>
-                <input type="text" class="form-control" id="country" name="country" required>
+                <input type="text" class="form-control" id="country" name="country" required> <!-- Maa kenttä -->
             </div>
             <div class="mb-3">
                 <label for="message" class="form-label">Viestisi:</label>
-                <textarea class="form-control" id="message" name="message" rows="4" required></textarea>
+                <textarea class="form-control" id="message" name="message" rows="4" required></textarea> <!-- Viesti kenttä -->
             </div>
             <button type="submit" class="btn btn-primary">Lähetä</button>
             <a href="/" class="btn btn-secondary">Peruuta</a>
@@ -29,15 +29,15 @@
 
     <script>
         function validateForm() {
-            const username = document.getElementById('username').value;
-            const country = document.getElementById('country').value;
+            const name = document.getElementById('name').value;
+            const country = document.getElementById('country').value; // Lisätty maa-tarkistus
             const message = document.getElementById('message').value;
 
-            if (!username || !country || !message) {
+            if (!name || !country || !message) { // Tarkistetaan, että kaikki kentät on täytetty
                 alert('Please fill in all fields before submitting.');
-                return false; // Prevent form submission
+                return false; // Estetään lomakkeen lähettäminen
             }
-            return true; // Allow form submission
+            return true; // Sallitaan lomakkeen lähettäminen
         }
     </script>
 </body>
